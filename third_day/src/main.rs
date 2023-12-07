@@ -9,6 +9,15 @@ fn main() {
 fn solve_part_1(input: &str) -> i32 {
     let mut numbers = vec![];
     let lines: Vec<Vec<char>> = input.lines().map(|line| line.chars().collect()).collect();
+    let _lines: Vec<Vec<i32>> = input
+        .lines()
+        .map(|line| {
+            line.split(|letter: char| !letter.is_ascii_digit())
+                .flat_map(|m| m.parse())
+                .collect()
+        })
+        .collect();
+    println!("{:?}", _lines);
     for y in 0..lines.len() {
         let mut number = String::from("");
         let mut is_part_number = false;
