@@ -1,0 +1,1 @@
+/home/jovan/Documents/programiranje/rust/advent_of_code23/seventh_day/target/debug/second: /home/jovan/Documents/programiranje/rust/advent_of_code23/seventh_day/src/bin/input.rs /home/jovan/Documents/programiranje/rust/advent_of_code23/seventh_day/src/bin/second.rs
