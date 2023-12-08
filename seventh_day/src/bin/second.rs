@@ -81,7 +81,7 @@ fn how_many_are_same(hand: [char; 5]) -> [usize; 5] {
 fn find_index_of_biggest(hand: [usize; 5]) -> usize {
     let mut biggest = 0;
     let mut index = 0;
-    for i in 0..5 {
+    for i in hand {
         if hand[i] > biggest {
             biggest = hand[i];
             index = i;

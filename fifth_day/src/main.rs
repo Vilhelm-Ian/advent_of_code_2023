@@ -1,6 +1,6 @@
 mod input;
-use rayon::prelude::*;
-use std::{collections::HashMap, env::current_dir};
+use rayon::{prelude::*, result};
+use std::collections::HashMap;
 
 #[derive(Debug)]
 struct Range {
@@ -37,7 +37,7 @@ impl Range {
 }
 
 fn main() {
-    let result = solve_part_2_improved(input::INPUT);
+    let result = solve_part_2(input::INPUT);
     // let result = solve_part_2_fast(input::TEST_INPUT);
     println!("{:?}", result);
 }
@@ -135,19 +135,37 @@ fn solve_part_2(input: &str) -> i64 {
     let seed_ranges: Vec<[i64; 2]> =
         parse_seeds_part_2(input.lines().next().expect("seeds not found"));
     let mut entries = parse_input(input);
-    seed_ranges
-        .iter()
-        .map(|range| {
-            let result = (range[0]..range[1])
-                .collect::<Vec<i64>>()
-                .iter()
-                .map(|seed| find_for_input_output(*seed, "seed", &entries, "location"))
-                .min()
-                .expect("no minimum valuefound because seed range is empyt");
+    seed_ranges.iter().fold(i64::MAX, |min, range| {
+        let result = (range[0]..range[1])
+            .collect::<Vec<i64>>()
+            .par_iter()
+            .fold(
+                || i64::MAX,
+                |min, seed| {
+                    let res = find_for_input_output(*seed, "seed", &entries, "location");
+                    if res < min {
+                        res
+                    } else {
+                        min
+                    }
+                },
+            )
+            .reduce(
+                || i64::MAX,
+                |min, res| {
+                    if res < min {
+                        res
+                    } else {
+                        min
+                    }
+                },
+            );
+        if result < min {
             result
-        })
-        .min()
-        .expect("no minimum value found because seeds is empty")
+        } else {
+            min
+        }
+    })
 }
 
 fn parse_seeds_part_2(line: &str) -> Vec<[i64; 2]> {
