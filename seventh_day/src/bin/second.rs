@@ -9,37 +9,27 @@ fn main() {
 }
 
 fn solve(input: &str) -> usize {
+    let mut ranks = parse_input(input);
+    ranks.iter_mut().for_each(|rank| {
+        rank.sort_by(|a, b| compare_hands(a.0, b.0));
+    });
+    ranks
+        .iter()
+        .flat_map(|rank| rank.iter().map(|(_hand, bid)| bid))
+        .enumerate()
+        .fold(0, |acc, (index, bid)| acc + (*bid as usize * (index + 1)))
+}
+
+fn parse_input(input: &str) -> Vec<Vec<([char; 5], i32)>> {
     let mut ranks = vec![vec![]; 8];
-    for line in input.lines() {
+    input.lines().for_each(|line| {
         let mut splited = line.split(' ');
         let hand = build_hand(splited.next().unwrap());
         let bid = splited.next().unwrap().parse::<i32>().unwrap();
         let rank = get_hand_type(hand);
         ranks[rank as usize].push((hand, bid));
-    }
-    ranks.iter_mut().for_each(|rank| {
-        rank.sort_by(|a, b| {
-            if a.0 == b.0 {
-                return Ordering::Equal;
-            }
-            if is_card_bigger(a.0, b.0) {
-                // it needs to be sorted in descending order
-                return Ordering::Greater;
-            }
-            Ordering::Less
-        })
     });
-    let mut bids = vec![];
-    let mut hands = vec![];
     ranks
-        .iter()
-        .for_each(|rank| rank.iter().for_each(|(_hand, bid)| bids.push(bid)));
-    ranks
-        .iter()
-        .for_each(|rank| rank.iter().for_each(|(hand, _bid)| hands.push(hand)));
-    bids.iter()
-        .enumerate()
-        .fold(0, |acc, (index, bid)| acc + (**bid as usize * (index + 1)))
 }
 
 fn get_hand_type(hand: [char; 5]) -> i32 {
@@ -79,15 +69,15 @@ fn how_many_are_same(hand: [char; 5]) -> [usize; 5] {
 
 //I should change the name of the argument
 fn find_index_of_biggest(hand: [usize; 5]) -> usize {
-    let mut biggest = 0;
-    let mut index = 0;
-    for i in hand {
-        if hand[i] > biggest {
-            biggest = hand[i];
-            index = i;
-        }
-    }
-    index
+    hand.into_iter()
+        .enumerate()
+        .fold([0, 0], |[biggest_index, biggest], (card_index, card)| {
+            if card > biggest {
+                [card_index, card]
+            } else {
+                [biggest_index, biggest]
+            }
+        })[0]
 }
 
 fn build_hand(hand: &str) -> [char; 5] {
@@ -109,18 +99,18 @@ fn get_card_strength(card: char) -> u32 {
     }
 }
 
-fn is_card_bigger(a: [char; 5], b: [char; 5]) -> bool {
+fn compare_hands(a: [char; 5], b: [char; 5]) -> Ordering {
     for i in 0..5 {
         let a_value = get_card_strength(a[i]);
         let b_value = get_card_strength(b[i]);
         if a_value > b_value {
-            return true;
-        }
+            return Ordering::Greater;
+        };
         if a_value < b_value {
-            return false;
-        }
+            return Ordering::Less;
+        };
     }
-    false
+    panic!("couldn't compare hands");
 }
 
 #[cfg(test)]
