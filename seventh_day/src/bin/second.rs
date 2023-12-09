@@ -110,7 +110,7 @@ fn compare_hands(a: [char; 5], b: [char; 5]) -> Ordering {
             return Ordering::Less;
         };
     }
-    panic!("couldn't compare hands");
+    Ordering::Equal
 }
 
 #[cfg(test)]
