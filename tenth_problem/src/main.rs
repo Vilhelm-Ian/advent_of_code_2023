@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::io::Cursor;
-use std::ops::Add;
+
+mod input;
 
 #[derive(Debug)]
 struct Pipe<'a> {
@@ -54,8 +54,9 @@ enum Direction {
 }
 
 fn main() {
-    generate_loop("hello");
-    println!("Hello, world!");
+    let result = generate_loop(input::INPUT);
+    println!("{:?}", result);
+    // println!("Hello, world!");
 }
 
 fn generate_loop(input: &str) -> i32 {
@@ -66,24 +67,33 @@ fn generate_loop(input: &str) -> i32 {
     // one is to search the end of the loop of both ends witch would be twice as fast tot do this i need to change the function find next_node_location to return an vector of positions
     // the other is to search the entire loop until I reach the start and and divide by two
     // I am going to try with the first approach
-    let (next_node_location, mut prev_direction) = find_first_valid(starting_point, &hash_map);
-    let mut prev_direction = Direction::Left;
+    let (next_node_location, mut prev_direction) = next_node_and_direction(
+        &map,
+        &hash_map,
+        hash_map.get(&starting_point).unwrap(),
+        None,
+    );
     let mut current_node = hash_map
         .get(&next_node_location)
         .expect("node dosen't exist in hashmap");
     let mut i = 1;
     while current_node.position != starting_point {
-        println!("\n");
+        println!(
+            "current node is {:?} current direction is {:?}",
+            current_node.pipe_type, prev_direction
+        );
         let (next_node_location, direction) =
-            name_later(&map, &hash_map, current_node, &mut prev_direction);
+            next_node_and_direction(&map, &hash_map, current_node, Some(&prev_direction));
         prev_direction = direction;
         current_node = hash_map
             .get(&next_node_location)
             .expect("node dosen't exist in hashmap");
+        println!(
+            "current node is {:?} current direction is {:?}",
+            current_node.pipe_type, prev_direction
+        );
+        println!("\n");
         i += 1;
-        if i == 18 {
-            break;
-        }
     }
     i
 }
@@ -106,7 +116,7 @@ fn find_first_valid(
                 Some(direction) => direction,
                 None => continue,
             };
-            println!("the directon is {:?}", direction);
+            // println!("the directon is {:?}", direction);
             let next_pipe = map.get(&next_position).expect("pipe dosen't exist");
             if get_next_node_location(next_pipe, &direction) {
                 return (next_position, direction);
@@ -153,13 +163,13 @@ fn char_to_pipe(letter: &char) -> PipeType {
 }
 
 fn get_direction(current_position: [i32; 2], next_position: [i32; 2]) -> Option<Direction> {
-    let y = current_position[0] - next_position[0] + 1;
-    let x = current_position[1] - next_position[1] + 1;
+    let y = current_position[0] - next_position[0];
+    let x = current_position[1] - next_position[1];
     match (y, x) {
-        (0, 1) => Some(Direction::Up),
-        (1, 0) => Some(Direction::Left),
-        (1, 2) => Some(Direction::Right),
-        (2, 1) => Some(Direction::Down),
+        (0, 1) => Some(Direction::Right),
+        (0, -1) => Some(Direction::Left),
+        (1, 0) => Some(Direction::Up),
+        (-1, 0) => Some(Direction::Down),
         _ => None,
     }
 }
@@ -174,48 +184,45 @@ fn is_opposite(prev_direction: &Direction, direction: &Direction) -> bool {
     }
 }
 
-fn name_later(
+fn next_node_and_direction(
     map: &Vec<Vec<char>>,
     pipes: &HashMap<[usize; 2], Pipe>,
     current_pipe: &Pipe,
-    prev_direction: &Direction,
+    prev_direction: Option<&Direction>,
 ) -> ([usize; 2], Direction) {
+    println!("{:?}", current_pipe);
     for y in 0..3 {
         for x in 0..3 {
-            let direction = match (y, x) {
-                (0, 1) => Direction::Up,
-                (1, 0) => Direction::Right,
-                (1, 2) => Direction::Left,
-                (2, 1) => Direction::Down,
-                _ => continue,
+            let current_position = current_pipe.position;
+            let new_position = [
+                (current_position[0] + y) as i32 - 1,
+                (current_position[1] + x) as i32 - 1,
+            ];
+            // println!("new_position {:?}", new_position);
+            let direction = match get_direction(
+                [current_position[0] as i32, current_position[1] as i32],
+                new_position,
+            ) {
+                Some(direction) => direction,
+                None => continue,
             };
-            if (y == 0 && current_pipe.position[0] == 0)
-                || (x == 0 && current_pipe.position[1] == 0)
-            {
-                continue;
+            // println!("new_position {:?} direction {:?}", new_position, direction);
+            if let Some(prev_direction) = prev_direction {
+                if is_opposite(prev_direction, &direction) {
+                    continue;
+                }
             }
-            if is_opposite(prev_direction, &direction) {
-                continue;
-            }
-            let next_pipe = match pipes.get(&[
-                current_pipe.position[0] + y - 1,
-                current_pipe.position[1] + x - 1,
-            ]) {
+            let next_pipe = match pipes.get(&[new_position[0] as usize, new_position[1] as usize]) {
                 Some(pipe) => pipe,
                 None => continue,
             };
-            println!(
-                "current {:?} is {:?} next {:?} is {:?} ",
-                current_pipe.position,
-                current_pipe.pipe_type,
-                next_pipe.position,
-                next_pipe.pipe_type
-            );
-
-            // let new_position = [position[0] + y - 1, position[1] + x - 1];
-            if get_next_node_location(next_pipe, &direction) {
-                return (next_pipe.position, direction);
+            if !get_next_node_location(next_pipe, &direction) {
+                continue;
             }
+            return (
+                [new_position[0] as usize, new_position[1] as usize],
+                direction,
+            );
         }
     }
     panic!("couldn't find next node");
@@ -223,7 +230,7 @@ fn name_later(
 
 // todo!("rename later")
 fn get_next_node_location(pipe: &Pipe, direction: &Direction) -> bool {
-    println!("{:?} {:?}", pipe.pipe_type, direction);
+    // println!("{:?} {:?}", pipe.pipe_type, direction);
     match (direction, &pipe.pipe_type) {
         (Direction::Up, PipeType::SevenBend) => true,
         (Direction::Up, PipeType::FBend) => true,
@@ -244,6 +251,8 @@ fn get_next_node_location(pipe: &Pipe, direction: &Direction) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::hash_map;
+
     use super::*;
     pub const TEST_INPUT_1: &str = ".....
 .S-7.
@@ -257,12 +266,53 @@ SJ.L7
 LJ...";
     #[test]
     fn first_test_part_1() {
-        let result = generate_loop(TEST_INPUT_1);
-        assert_eq!(8, result);
+        let map = TEST_INPUT_1
+            .lines()
+            .map(|line| line.chars().collect::<Vec<char>>())
+            .collect();
+        let hash_map: HashMap<[usize; 2], Pipe> = generate_hash_map(&map);
+        let current_pipe = Pipe::new(1, 2, PipeType::Horizontal);
+        let result =
+            next_node_and_direction(&map, &hash_map, &current_pipe, Some(&Direction::Left));
+        println!("print {:?} {:?}", result.0, result.1);
+        assert!(matches!(result, ([1, 3], Direction::Left)));
+    }
+    #[test]
+    fn first_test_part_1_part_1() {
+        let result = get_direction([40, 30], [40, 29]).unwrap();
+        assert!(matches!(result, Direction::Right));
     }
     #[test]
     fn second_test_part_1() {
         let result = generate_loop(TEST_INPUT_2);
         assert_eq!(16, result);
+    }
+    #[test]
+    fn direction_test_1() {
+        let result = get_direction([40, 30], [39, 30]).unwrap();
+        assert!(matches!(result, Direction::Up));
+    }
+    #[test]
+    fn direction_test_3() {
+        let result = get_direction([40, 30], [41, 30]).unwrap();
+        assert!(matches!(result, Direction::Down));
+    }
+    #[test]
+    fn direction_test_2() {
+        let result = get_direction([40, 30], [40, 31]).unwrap();
+        assert!(matches!(result, Direction::Left));
+    }
+    #[test]
+    fn direction_test_4() {
+        let result = get_direction([40, 30], [40, 29]).unwrap();
+        assert!(matches!(result, Direction::Right));
+    }
+    #[test]
+    fn test_from_problem_input() {
+        let input = "F77S7
+|L-J|
+L---J";
+        let result = generate_loop(input);
+        assert_eq!(input.len() as i32, result);
     }
 }
