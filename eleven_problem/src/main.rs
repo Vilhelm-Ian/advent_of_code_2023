@@ -2,25 +2,64 @@ use std::collections::HashSet;
 
 mod input;
 
+struct Star {
+    initial_x: usize,
+    initial_y: usize,
+    current_x: usize,
+    current_y: usize,
+}
+
+impl Star {
+    fn new(y: usize, x: usize) -> Star {
+        Star {
+            initial_x: x,
+            initial_y: y,
+            current_x: x,
+            current_y: y,
+        }
+    }
+    fn to_arr(&self) -> [usize; 2] {
+        [self.current_y, self.current_x]
+    }
+}
+
 fn main() {
     let result = solve_part_1(input::INPUT);
+    println!("{:?}", result);
+    let result = solve_part_2(input::INPUT, 1_000_000);
     println!("{:?}", result);
 }
 
 fn solve_part_1(input: &str) -> i32 {
     let map: Vec<Vec<char>> = input.lines().map(|x| x.chars().collect()).collect();
     let expanded_map = expand_input(map);
-    get_sum(expanded_map)
+    let stars = find_all_stars(&expanded_map);
+    get_sum(stars).try_into().unwrap()
 }
 
-fn solve_part_2(input: &str) -> i32 {
+fn solve_part_2(input: &str, multiplier: usize) -> i64 {
     let map: Vec<Vec<char>> = input.lines().map(|x| x.chars().collect()).collect();
-    let expanded_map = expand_input(map);
-    get_sum(expanded_map)
+    let empty_collums = find_empty_collums(&map);
+    let empty_rows = find_empty_rows(&map);
+    let mut stars = find_all_stars(&map);
+    for row in empty_rows {
+        for star in stars.iter_mut() {
+            if star.initial_y > row {
+                star.current_y += multiplier - 1;
+            }
+        }
+    }
+    for collum in empty_collums {
+        for star in stars.iter_mut() {
+            if star.initial_x > collum {
+                star.current_x += multiplier - 1;
+            }
+        }
+    }
+    get_sum(stars)
 }
 
-fn get_sum(map: Vec<Vec<char>>) -> i32 {
-    let stars = find_all_stars(&map);
+fn get_sum(stars: Vec<Star>) -> i64 {
     let mut result = vec![];
     let mut galaxies_to_exclude = HashSet::new();
     for star in stars.iter() {
@@ -29,13 +68,11 @@ fn get_sum(map: Vec<Vec<char>>) -> i32 {
             &stars,
             &mut galaxies_to_exclude,
         ));
-
-        // galaxies_to_exclude.insert(star);
     }
     result.iter().flatten().sum()
 }
 
-fn find_all_stars(map: &Vec<Vec<char>>) -> Vec<[usize; 2]> {
+fn find_all_stars(map: &Vec<Vec<char>>) -> Vec<Star> {
     map.iter()
         .enumerate()
         .flat_map(|(y, row)| {
@@ -43,30 +80,32 @@ fn find_all_stars(map: &Vec<Vec<char>>) -> Vec<[usize; 2]> {
                 .enumerate()
                 .filter_map(|(x, letter)| {
                     if letter == &'#' {
-                        return Some([y, x]);
+                        return Some(Star::new(y, x));
                     }
                     None
                 })
-                .collect::<Vec<[usize; 2]>>()
+                .collect::<Vec<Star>>()
         })
         .collect()
 }
 
 fn find_distance_to_all_galaxies(
-    initial_location: &[usize; 2],
-    galaxies: &Vec<[usize; 2]>,
+    initial_location: &Star,
+    galaxies: &Vec<Star>,
     galaxies_to_exclude: &mut HashSet<[[usize; 2]; 2]>,
-) -> Vec<i32> {
+) -> Vec<i64> {
     let mut result = vec![];
     for galaxy in galaxies {
-        let vector = match sort_locatios(initial_location, galaxy) {
+        let vector = match sort_locatios(&initial_location.to_arr(), &galaxy.to_arr()) {
             Some(vector) => vector,
-            None => continue,
+            None => {
+                continue;
+            }
         };
         if galaxies_to_exclude.get(&vector).is_none() {
             result.push(
-                (initial_location[0] as i32 - galaxy[0] as i32).abs()
-                    + (initial_location[1] as i32 - galaxy[1] as i32).abs(),
+                (initial_location.current_y as i64 - galaxy.current_y as i64).abs()
+                    + (initial_location.current_x as i64 - galaxy.current_x as i64).abs(),
             );
             galaxies_to_exclude.insert(vector);
         }
@@ -104,28 +143,12 @@ fn generate_new_locations(location: &[usize; 2], height: usize, width: usize) ->
     if location[1] > 0 {
         result.push([location[0], location[1] - 1])
     }
-    // println!("{:?}", result);
-    // println!("{:?} {:?}", height, width);
     result
 }
 
 fn expand_input(mut map: Vec<Vec<char>>) -> Vec<Vec<char>> {
-    let empty_rows: Vec<usize> = map
-        .iter()
-        .enumerate()
-        .filter_map(|(y, row)| {
-            if row.iter().all(|cell| cell != &'#') {
-                return Some(y);
-            }
-            None
-        })
-        .collect();
-    let empty_collums: Vec<usize> = (0..map[0].len())
-        .filter(|x| {
-            let collum: Vec<char> = map.iter().map(|row| row[*x]).collect();
-            collum.iter().all(|cell| cell != &'#')
-        })
-        .collect();
+    let empty_rows = find_empty_rows(&map);
+    let empty_collums = find_empty_collums(&map);
     for (i, row) in empty_rows.iter().enumerate() {
         map.insert(row + i, vec!['.'; map[0].len()]);
     }
@@ -133,6 +156,27 @@ fn expand_input(mut map: Vec<Vec<char>>) -> Vec<Vec<char>> {
         map.iter_mut().for_each(|row| row.insert(collum + i, '.'));
     }
     map
+}
+
+fn find_empty_rows(map: &Vec<Vec<char>>) -> Vec<usize> {
+    map.iter()
+        .enumerate()
+        .filter_map(|(y, row)| {
+            if row.iter().all(|cell| cell != &'#') {
+                return Some(y);
+            }
+            None
+        })
+        .collect()
+}
+
+fn find_empty_collums(map: &Vec<Vec<char>>) -> Vec<usize> {
+    (0..map[0].len())
+        .filter(|x| {
+            let collum: Vec<char> = map.iter().map(|row| row[*x]).collect();
+            collum.iter().all(|cell| cell != &'#')
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -143,15 +187,10 @@ mod tests {
     fn shortest_paths() {
         let input = input::TEST_INPUT_EXPANDED;
         let map: Vec<Vec<char>> = input.lines().map(|x| x.chars().collect()).collect();
-        let result = get_sum(map);
+        let stars = find_all_stars(&map);
+
+        let result = get_sum(stars);
         assert_eq!(374, result);
-    }
-    #[test]
-    fn shortest_paths_part_2() {
-        let input = input::TEST_INPUT_EXPANDED;
-        let map: Vec<Vec<char>> = input.lines().map(|x| x.chars().collect()).collect();
-        let result = get_sum(map);
-        assert_eq!(8410, result);
     }
     #[test]
     fn expand() {
@@ -188,6 +227,18 @@ mod tests {
         let input = input::TEST_INPUT;
         let result = solve_part_1(input);
         assert_eq!(result, 374);
+    }
+    #[test]
+    fn part_2_10() {
+        let input = input::TEST_INPUT;
+        let result = solve_part_2(input, 10);
+        assert_eq!(result, 1030);
+    }
+    #[test]
+    fn part_2_100() {
+        let input = input::TEST_INPUT;
+        let result = solve_part_2(input, 100);
+        assert_eq!(result, 8410);
     }
     #[test]
     fn part_1_single_row_1() {

@@ -3,20 +3,16 @@ use std::collections::HashMap;
 mod input;
 
 #[derive(Debug)]
-struct Pipe<'a> {
-    distance_from_start: Option<i32>,
-    next_node: Option<&'a Pipe<'a>>,
+struct Pipe {
     pipe_type: PipeType,
     position: [usize; 2],
 }
 
-impl<'a> Pipe<'a> {
-    fn new(y: usize, x: usize, pipe_type: PipeType) -> Pipe<'a> {
+impl Pipe {
+    fn new(y: usize, x: usize, pipe_type: PipeType) -> Pipe {
         Self {
             position: [y, x],
             pipe_type,
-            next_node: None,
-            distance_from_start: None,
         }
     }
 }
@@ -78,52 +74,15 @@ fn generate_loop(input: &str) -> i32 {
         .expect("node dosen't exist in hashmap");
     let mut i = 1;
     while current_node.position != starting_point {
-        println!(
-            "current node is {:?} current direction is {:?}",
-            current_node.pipe_type, prev_direction
-        );
         let (next_node_location, direction) =
             next_node_and_direction(&map, &hash_map, current_node, Some(&prev_direction));
         prev_direction = direction;
         current_node = hash_map
             .get(&next_node_location)
             .expect("node dosen't exist in hashmap");
-        println!(
-            "current node is {:?} current direction is {:?}",
-            current_node.pipe_type, prev_direction
-        );
-        println!("\n");
         i += 1;
     }
     i
-}
-
-fn find_first_valid(
-    starting_position: [usize; 2],
-    map: &HashMap<[usize; 2], Pipe>,
-) -> ([usize; 2], Direction) {
-    for y in 0..3 {
-        for x in 0..3 {
-            if starting_position[0] + y == 0 || starting_position[1] + x == 0 {
-                continue;
-            }
-            let next_position = [starting_position[0] + y - 1, starting_position[1] + x - 1];
-            let starting_position = [starting_position[0] as i32, starting_position[1] as i32];
-            let direction = match get_direction(
-                starting_position,
-                [next_position[0] as i32, next_position[1] as i32],
-            ) {
-                Some(direction) => direction,
-                None => continue,
-            };
-            // println!("the directon is {:?}", direction);
-            let next_pipe = map.get(&next_position).expect("pipe dosen't exist");
-            if get_next_node_location(next_pipe, &direction) {
-                return (next_position, direction);
-            }
-        }
-    }
-    panic!("couldn't find valid pipe around starting location");
 }
 
 fn generate_hash_map(map: &Vec<Vec<char>>) -> HashMap<[usize; 2], Pipe> {
@@ -216,7 +175,10 @@ fn next_node_and_direction(
                 Some(pipe) => pipe,
                 None => continue,
             };
-            if !get_next_node_location(next_pipe, &direction) {
+            if !can_current_pipe_go_in_direction(current_pipe, &direction) {
+                continue;
+            }
+            if !is_valid_pipe_connection(next_pipe, &direction) {
                 continue;
             }
             return (
@@ -229,7 +191,7 @@ fn next_node_and_direction(
 }
 
 // todo!("rename later")
-fn get_next_node_location(pipe: &Pipe, direction: &Direction) -> bool {
+fn is_valid_pipe_connection(pipe: &Pipe, direction: &Direction) -> bool {
     // println!("{:?} {:?}", pipe.pipe_type, direction);
     match (direction, &pipe.pipe_type) {
         (Direction::Up, PipeType::SevenBend) => true,
@@ -245,6 +207,20 @@ fn get_next_node_location(pipe: &Pipe, direction: &Direction) -> bool {
         (Direction::Right, PipeType::Horizontal) => true,
         (Direction::Right, PipeType::LBend) => true,
         (_, PipeType::Starting) => true,
+        (_, _) => false,
+    }
+}
+
+fn can_current_pipe_go_in_direction(current_pipe: &Pipe, direction: &Direction) -> bool {
+    match (&current_pipe.pipe_type, direction) {
+        (PipeType::Horizontal, Direction::Left | Direction::Right) => true,
+        (PipeType::Vertical, Direction::Up | Direction::Down) => true,
+        (PipeType::FBend, Direction::Down | Direction::Left) => true,
+        (PipeType::SevenBend, Direction::Down | Direction::Right) => true,
+        (PipeType::JBend, Direction::Up | Direction::Right) => true,
+        (PipeType::LBend, Direction::Up | Direction::Left) => true,
+        (PipeType::Starting, _) => true,
+        (PipeType::Ground, _) => false,
         (_, _) => false,
     }
 }
@@ -309,10 +285,10 @@ LJ...";
     }
     #[test]
     fn test_from_problem_input() {
-        let input = "F77S7
+        let input = "F7.S7
 |L-J|
 L---J";
         let result = generate_loop(input);
-        assert_eq!(input.len() as i32, result);
+        assert_eq!(14, result);
     }
 }
