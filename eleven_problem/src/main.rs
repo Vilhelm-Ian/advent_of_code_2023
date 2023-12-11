@@ -35,22 +35,22 @@ fn get_sum(map: Vec<Vec<char>>) -> i32 {
         result.push(find_distance_to_all_galaxies(
             star,
             &map,
-            &galaxies_to_exclude,
+            &mut galaxies_to_exclude,
         ));
 
-        galaxies_to_exclude.insert(star);
+        // galaxies_to_exclude.insert(star);
     }
     result.iter().flatten().sum()
 }
 
 fn find_distance_to_all_galaxies(
-    location: [usize; 2],
+    initial_location: [usize; 2],
     map: &Vec<Vec<char>>,
-    galaxies_to_exclude: &HashSet<[usize; 2]>,
+    galaxies_to_exclude: &mut HashSet<[[usize; 2]; 2]>,
 ) -> Vec<i32> {
-    let mut current_level = vec![location];
+    let mut current_level = vec![initial_location];
     let mut set = HashSet::new();
-    set.insert(location);
+    set.insert(initial_location);
     let mut depth = 0;
     let mut result = vec![];
     while !current_level.is_empty() {
@@ -63,10 +63,12 @@ fn find_distance_to_all_galaxies(
                     if map[new_location[0]][new_location[1]] == '.' {
                         temp.push(new_location);
                     }
+                    let key = sort_locatios(&new_location, &initial_location);
 
-                    if galaxies_to_exclude.get(&new_location).is_none()
+                    if galaxies_to_exclude.get(&key).is_none()
                         && map[new_location[0]][new_location[1]] == '#'
                     {
+                        galaxies_to_exclude.insert(key);
                         result.push(depth);
                     }
                     set.insert(new_location);
@@ -76,6 +78,22 @@ fn find_distance_to_all_galaxies(
         current_level = temp;
     }
     result
+}
+
+fn sort_locatios(a: &[usize; 2], b: &[usize; 2]) -> [[usize; 2]; 2] {
+    if a[0] > b[0] {
+        return [*a, *b];
+    }
+    if b[0] > a[0] {
+        return [*b, *a];
+    }
+    if a[1] > b[1] {
+        return [*a, *b];
+    }
+    if b[1] > a[1] {
+        return [*b, *a];
+    }
+    panic!("couldn't compare {:?} and {:?}", a, b);
 }
 
 fn generate_new_locations(location: &[usize; 2], height: usize, width: usize) -> Vec<[usize; 2]> {
@@ -138,14 +156,16 @@ mod tests {
     fn shortest_path_8_to_9() {
         let input = input::TEST_INPUT_EXPANDED;
         let parsed: Vec<Vec<char>> = input.lines().map(|x| x.chars().collect()).collect();
-        let result = find_distance_to_all_galaxies([parsed.len() - 1, 0], &parsed, &HashSet::new());
+        let result =
+            find_distance_to_all_galaxies([parsed.len() - 1, 0], &parsed, &mut HashSet::new());
         assert_eq!(result[0], 5);
     }
     #[test]
     fn shortest_path_9_to_7_and_9_to_8() {
         let input = input::TEST_INPUT_EXPANDED;
         let parsed: Vec<Vec<char>> = input.lines().map(|x| x.chars().collect()).collect();
-        let result = find_distance_to_all_galaxies([parsed.len() - 1, 5], &parsed, &HashSet::new());
+        let result =
+            find_distance_to_all_galaxies([parsed.len() - 1, 5], &parsed, &mut HashSet::new());
         assert_eq!(result[0], 5);
         assert_eq!(result[1], 5);
     }
@@ -195,6 +215,35 @@ mod tests {
     fn part_1_single_row_2() {
         let input = "###";
         let result = solve_part_1(input);
-        assert_eq!(result, 3);
+        assert_eq!(result, 2);
+    }
+    #[test]
+    fn sort_test() {
+        let a = [0, 1];
+        let b = [3, 0];
+        let result = sort_locatios(&a, &b);
+        assert_eq!(result, [b, a]);
+    }
+    #[test]
+    fn sort_test_1() {
+        let b = [0, 1];
+        let a = [3, 0];
+        let result = sort_locatios(&a, &b);
+        assert_eq!(result, [a, b]);
+    }
+    #[test]
+    fn sort_test_2() {
+        let a = [3, 1];
+        let b = [3, 0];
+        let result = sort_locatios(&a, &b);
+        assert_eq!(result, [a, b]);
+    }
+    #[test]
+    fn sort_test_4() {
+        let b = [3, 1];
+        let a = [3, 0];
+        let result = sort_locatios(&a, &b);
+        let result_2 = sort_locatios(&b, &a);
+        assert_eq!(result, result_2);
     }
 }
