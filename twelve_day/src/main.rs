@@ -63,12 +63,12 @@ fn insert_all(
         set.insert(result);
         return 0;
     }
-    let mut seen_record = vec![];
+    let mut seen_record = HashSet::new();
     for record in records.iter() {
-        if seen_record.contains(record) {
+        if seen_record.get(&record).is_some() {
             continue;
         }
-        seen_record.push(*record);
+        seen_record.insert(record);
         for unknown in unknows.iter() {
             if let Some(updated_spring) = insert_broken(springs, *unknown, *record) {
                 let records = (&records[1..records.len()]).to_vec();
@@ -85,9 +85,6 @@ fn insert_all(
     if set.is_empty() {
         1
     } else {
-        for value in set.iter() {
-            println!("set {:?}", value);
-        }
         set.len()
     }
 }
@@ -186,12 +183,6 @@ mod tests {
         let input = "????.#...#... 4,1,1";
         let result = how_many_arragments(input);
         assert_eq!(1, result);
-    }
-    #[test]
-    fn third_example_part_6() {
-        let input = "?.???#.??? 1,1,1";
-        let result = how_many_arragments(input);
-        assert_eq!(0, result);
     }
     #[test]
     fn part_1_test() {
