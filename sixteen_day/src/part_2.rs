@@ -214,12 +214,24 @@ fn get_locations(beams: &Vec<Beam>) -> Vec<[usize; 2]> {
         .collect()
 }
 
+fn is_edge_location(location: [usize; 2], grid: &Vec<Vec<char>>) -> bool {
+    if location[0] == 0 || location[0] == grid.len() - 1 {
+        return true;
+    }
+    if location[1] == 0 || location[1] == grid[0].len() - 1 {
+        return true;
+    }
+    false
+}
+
 pub fn solve(input: &str) -> usize {
     let grid = parse(input);
-    let horizontal_ranges = find_horizontal_ranges(&grid);
-    let vertical_ranges = find_vertical_ranges(&grid);
+    let mut horizontal_ranges = find_horizontal_ranges(&grid);
+    let mut vertical_ranges = find_vertical_ranges(&grid);
+    horizontal_ranges.retain(|range| is_edge_location(range[0], &grid));
+    vertical_ranges.retain(|range| is_edge_location(range[0], &grid));
     let horizontal_length = horizontal_ranges.len();
-    let vertical_length = horizontal_ranges.len();
+    let vertical_length = vertical_ranges.len();
     let grid_1 = grid.clone();
     let grid_2 = grid.clone();
     let multi = MultiProgress::new();
@@ -227,15 +239,22 @@ pub fn solve(input: &str) -> usize {
     let bar_2 = multi.add(ProgressBar::new(vertical_length as u64));
     let horizontal_thread = thread::spawn(move || {
         let mut lengths = vec![];
-        for horizontal_range in horizontal_ranges {
+        for [start_range, end_range] in horizontal_ranges {
             bar_1.inc(1);
-            let energized_grid =
-                generate_energized_grid(&grid_1, horizontal_range[1], Direction::Right);
-            let lava_length = get_lava_length(&energized_grid);
+            let grid_1_1 = grid_1.clone();
+            let thread_1 = thread::spawn(move || {
+                let energized_grid = generate_energized_grid(&grid_1_1, end_range, Direction::Left);
+                get_lava_length(&energized_grid)
+            });
+            let grid_1_2 = grid_1.clone();
+            let thread_2 = thread::spawn(move || {
+                let energized_grid =
+                    generate_energized_grid(&grid_1_2, start_range, Direction::Right);
+                get_lava_length(&energized_grid)
+            });
+            let lava_length = thread_1.join().unwrap();
             lengths.push(lava_length);
-            let energized_grid =
-                generate_energized_grid(&grid_1, horizontal_range[0], Direction::Left);
-            let lava_length = get_lava_length(&energized_grid);
+            let lava_length = thread_2.join().unwrap();
             lengths.push(lava_length);
         }
         bar_1.finish();
