@@ -6,12 +6,15 @@ use std::time::{Duration, Instant};
 mod input;
 
 fn main() {
-    let result = part_2_input_generate(input::INPUT);
-    println!("{:?}", result);
-    let now = Instant::now();
-    let result = how_many_arragments(input::INPUT);
-    println!("{:?}", result);
-    println!("{} seconds", now.elapsed().as_secs());
+    let input = "???.### 1,1,3";
+    solve_part_2(input);
+
+    // let result = part_2_input_generate(input::INPUT);
+    // println!("{:?}", result);
+    // let now = Instant::now();
+    // let result = how_many_arragments(input::INPUT);
+    // println!("{:?}", result);
+    // println!("{} seconds", now.elapsed().as_secs());
 }
 
 fn solve_part_2(input: &str) -> usize {
@@ -98,6 +101,7 @@ fn insert_all(
     if &how_many_broken_sequences(result.as_str()) == original_records {
         set.insert(result);
     }
+    println!("{:?}", springs);
     for record in records.iter() {
         for unknown in unknows.iter() {
             if let Some(updated_spring) = insert_broken(springs, *unknown, *record) {

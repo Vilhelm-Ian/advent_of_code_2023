@@ -1,4 +1,6 @@
 mod input;
+use std::collections::HashMap;
+use std::collections::HashSet;
 
 enum Direction {
     North,
@@ -8,19 +10,39 @@ enum Direction {
 }
 
 fn main() {
-    let result = solve(&input::INPUT, 1_000);
+    let result = solve(&input::INPUT, 1000000000);
     println!("{result}");
 }
 
 fn solve(input: &str, cycles: i32) -> usize {
-    let mut map = input.lines().map(|line| line.chars().collect()).collect();
-    for i in 0..cycles {
-        map = tilt_cycle(map);
+    let mut map: Vec<Vec<char>> = input.lines().map(|line| line.chars().collect()).collect();
+    let mut iterations = HashMap::new();
+    let mut cycle = vec![];
+    let mut cycle_start = false;
+    let mut cycle_end = false;
+    for _ in 0..cycles {
+        map = tilt_cycle(&map.clone());
+        println!("{:?}", print_map(&map));
+
+        if iterations.get(&map).is_some() {
+            println!("hi");
+            if cycle_start {
+                println!("{:?}", cycle.len());
+                cycle_end = true;
+                break;
+            }
+            cycle_start = true;
+        }
+        if cycle_start && !cycle_end {
+            cycle.push(map.clone());
+        }
+        iterations.insert(map.clone(), iterations.len());
     }
     calculate_weights(&map)
 }
 
-fn tilt_cycle(mut map: Vec<Vec<char>>) -> Vec<Vec<char>> {
+fn tilt_cycle(mut map: &Vec<Vec<char>>) -> Vec<Vec<char>> {
+    let mut cloned_map = map.clone();
     let directions = vec![
         Direction::North,
         Direction::West,
@@ -28,9 +50,9 @@ fn tilt_cycle(mut map: Vec<Vec<char>>) -> Vec<Vec<char>> {
         Direction::East,
     ];
     for i in 0..4 {
-        map = tilt(&map, &directions[i]);
+        cloned_map = tilt(&map, &directions[i]);
     }
-    map
+    cloned_map
 }
 
 fn parse(input: &str) -> Vec<Vec<char>> {
@@ -183,12 +205,10 @@ fn calculate_weights(map: &Vec<Vec<char>>) -> usize {
     sum
 }
 
-fn print_map(map: &Vec<Vec<char>>) {
-    let result: String = map
-        .iter()
+fn print_map(map: &Vec<Vec<char>>) -> String {
+    map.iter()
         .map(|row| row.iter().collect::<String>() + "\n")
-        .collect();
-    println!("{}", result);
+        .collect()
 }
 
 #[cfg(test)]
